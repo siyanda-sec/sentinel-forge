@@ -1,69 +1,189 @@
-# Week 1 — Lab Setup
+# Week 01 — Lab Setup
 
 ## Objective
 
-Build and document the initial Sentinel Forge lab environment.
+Build and document the initial Sentinel Forge lab environment — three VMs on an isolated internal network, with Wazuh manager installed and running on the Ubuntu Server.
+
+---
 
 ## Tasks
 
-- [x] Prepare Kali Linux
-- [x] Prepare Windows VM
-- [x] Prepare Ubuntu Server (Wazuh manager)
-- [x] Configure isolated lab network
-- [x] Verify connectivity
-- [x] Document the lab architecture
-- [X] Capture initial screenshots
+- [x] Prepare Kali Linux VM
+- [x] Prepare Windows 10 VM
+- [x] Prepare Ubuntu Server VM (Wazuh manager)
+- [x] Configure isolated internal network (`SentinelForge`)
+- [x] Assign static IPs and verify connectivity
+- [x] Install Wazuh manager
+- [ ] Set up Wazuh indexer and dashboard
+- [ ] Enroll Windows agent
+- [ ] Add screenshots to evidence folder
 
-## What I built
+---
 
-Three VMs in VirtualBox, all talking to each other over an isolated internal network called `SentinelForge`:
+## What Was Built
 
-- **Kali Linux** — my attacker/analyst box — 10.10.10.10
-- **Windows 10** — the target machine —  10.10.10.20
-- **Ubuntu Server 24.04.4 LTS** — running the Wazuh manager, hostname `sentinelforge-wazuh` — 10.10.10.30
+Three VMs running in VirtualBox, all connected over an isolated internal network named `SentinelForge`:
 
-The internal network keeps all three isolated from my host machine and the internet. Ubuntu also has a second NAT adapter just for internet access during setup (installing packages, etc.) — that adapter isn't part of the lab traffic.
+| Machine | Role | IP Address | OS |
+|---|---|---|---|
+| Kali Linux | Attacker / analyst | 10.10.10.10 | Kali Linux |
+| Windows 10 | Target | 10.10.10.20 | Windows 10 |
+| Ubuntu Server | Wazuh manager | 10.10.10.30 | Ubuntu Server 24.04.4 LTS |
 
-## Networking notes
+The internal network keeps all three VMs isolated from the host machine and the internet. Ubuntu has a second NAT adapter for internet access during setup (package installs, etc.) — this adapter is not part of lab traffic.
 
-Getting the static IPs set up took a bit of trial and error:
+**Screenshot:** `evidence/screenshots/week-01/virtualbox-network-config.png`
 
-- Kali: static IP set via `nmcli` on the internal adapter
-- Windows: set manually through the adapter's TCP/IPv4 properties
-- Ubuntu: set via netplan (`/etc/netplan/50-cloud-init.yaml`), since Ubuntu Server doesn't use NetworkManager by default
+---
 
-Windows blocks inbound ping by default, so I had to add a firewall rule before Kali could reach it:
+## Networking
+
+### Static IP configuration
+
+Getting static IPs working required a different approach on each machine:
+
+**Kali Linux** — set via `nmcli` on the internal adapter:
+```bash
+nmcli con mod "Wired connection 1" ipv4.addresses 10.10.10.10/24
+nmcli con mod "Wired connection 1" ipv4.method manual
+nmcli con up "Wired connection 1"
+```
+
+**Windows 10** — set manually through adapter TCP/IPv4 properties:
+- IP: `10.10.10.20`
+- Subnet: `255.255.255.0`
+- No gateway needed (isolated network)
+
+**Ubuntu Server** — configured via netplan (Ubuntu Server doesn't use NetworkManager by default):
+
+`/etc/netplan/50-cloud-init.yaml`:
+```yaml
+network:
+  version: 2
+  ethernets:
+    enp0s3:        # Internal adapter — SentinelForge network
+      dhcp4: no
+      addresses:
+        - 10.10.10.30/24
+    enp0s8:        # NAT adapter — internet access only
+      dhcp4: yes
+```
+```bash
+sudo netplan apply
+```
+
+### Windows firewall rule for ICMP
+
+Windows blocks inbound ping by default. Added a firewall rule to allow it:
 ```powershell
 New-NetFirewallRule -DisplayName "Allow ICMPv4-In" -Protocol ICMPv4 -IcmpType 8 -Direction Inbound -Action Allow
 ```
 
-I also set up SSH access into the Ubuntu VM (via NAT port forwarding, host port 2222 → guest port 22) so I could work from my Mac's terminal instead of the VirtualBox console window. Made a big difference once I got into longer commands and editing config files — copy/paste just isn't available in the console without Guest Additions installed.
+### SSH access into Ubuntu
 
-## Connectivity
+Configured NAT port forwarding on the Ubuntu VM (host port `2222` → guest port `22`) to allow SSH access from the Mac terminal:
+```bash
+ssh user@127.0.0.1 -p 2222
+```
+This made a significant difference for working with longer commands and config files — copy/paste isn't available in the VirtualBox console without Guest Additions installed.
 
-Tested every direction, all working:
+**Screenshot:** `evidence/screenshots/week-01/ip-configs.png`
 
-- Kali ↔ Windows ✅
-- Ubuntu ↔ Kali ✅
-- Ubuntu ↔ Windows ✅
+---
 
+## Connectivity Tests
 
+Tested all directions across the internal network:
 
-## Wazuh manager
+| Source | Destination | Result |
+|---|---|---|
+| Kali | Windows | ✅ |
+| Kali | Ubuntu | ✅ |
+| Windows | Kali | ✅ |
+| Windows | Ubuntu | ✅ |
+| Ubuntu | Kali | ✅ |
+| Ubuntu | Windows | ✅ |
 
-Installed Wazuh manager (v4.14.7) on the Ubuntu VM using the manual install steps (GPG key → repo → package) rather than the all-in-one script. Service is enabled and running, all core daemons up (analysisd, remoted, logcollector, monitord, modulesd, authd, wazuh-db).
+**Screenshot:** `evidence/screenshots/week-01/ping-tests.png`
 
-Indexer and dashboard aren't set up yet — that's next, before I can actually see anything in a web UI or enroll the Windows agent.
+---
 
-## Decisions
+## Wazuh Manager Installation
 
-- Might add Sysmon on Windows later for better visibility once I get into the attack simulation phase.
-- My host only has 8GB RAM, so I can't run all three VMs at once comfortably. Plan is to keep Wazuh + Windows running together, and only boot Kali when I'm actually running an attack — the events still land in Wazuh even after Kali is shut back down.
+Installed Wazuh manager **v4.14.7** on the Ubuntu VM using the manual install method (GPG key → repo → package) rather than the all-in-one script.
+
+```bash
+# Add GPG key
+curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --dearmor | sudo tee /usr/share/keyrings/wazuh.gpg > /dev/null
+
+# Add repository
+echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" | sudo tee /etc/apt/sources.list.d/wazuh.list
+
+# Install
+sudo apt update
+sudo apt install wazuh-manager
+sudo systemctl enable wazuh-manager
+sudo systemctl start wazuh-manager
+```
+
+**Core daemons confirmed running:**
+
+| Daemon | Purpose |
+|---|---|
+| `wazuh-analysisd` | Event analysis and rule matching |
+| `wazuh-remoted` | Agent communication |
+| `wazuh-logcollector` | Log collection |
+| `wazuh-monitord` | Agent monitoring |
+| `wazuh-modulesd` | Module management |
+| `wazuh-authd` | Agent authentication |
+| `wazuh-db` | Database management |
+
+```bash
+sudo systemctl status wazuh-manager
+```
+
+**Screenshot:** `evidence/screenshots/week-01/wazuh-service-status.png`
+
+> **Note:** Wazuh indexer and dashboard are not yet configured — the manager is running but there is no web UI yet. This will be completed before Week 04 (SIEM & Detection).
+
+---
+
+## Decisions & Notes
+
+**RAM constraint** — host machine has 8GB RAM, which isn't enough to run all three VMs comfortably at the same time. Working approach:
+- Keep Ubuntu (Wazuh) + Windows running together for monitoring and log collection
+- Boot Kali only when actively running attack scenarios
+- Events generated before Kali is shut down still land in Wazuh — no data lost
+
+**Sysmon** — considering installing Sysmon on the Windows VM later for richer process and network event visibility, particularly useful during the attack simulation phase (Week 05).
+
+---
+
+## What's Still Pending
+
+- [ ] Wazuh indexer setup
+- [ ] Wazuh dashboard setup
+- [ ] Windows agent enrollment
+- [ ] Screenshots added to evidence folder
+
+---
 
 ## Evidence
 
-Screenshots (VirtualBox network settings, IP configs, ping tests, Wazuh service status) live in the repo's `evidence/` and `screenshots/` folders.
+```
+evidence/
+└── screenshots/
+    └── week-01/
+        
+```
 
-## Status
+---
 
-In progress — architecture, networking, and Wazuh manager are done. Still need to add screenshots and get the indexer/dashboard running.
+## Next Week Preview
+
+**Week 02 — Network Reconnaissance & Traffic Analysis**
+Mapping the lab network with Nmap, capturing live traffic with Wireshark, and establishing a baseline of normal network behaviour before any attacks are introduced.
+
+---
+
+*Sentinel Forge · Week 01 of 08*
