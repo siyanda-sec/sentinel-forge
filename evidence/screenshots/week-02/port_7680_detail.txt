@@ -1,0 +1,10 @@
+Starting Nmap 7.99 ( https://nmap.org ) at 2026-09-18 06:19 -0400
+Nmap scan report for 10.10.10.20
+Host is up (0.00059s latency).
+
+PORT     STATE SERVICE    VERSION
+7680/tcp open  pando-pub?
+MAC Address: 08:00:27:17:EB:96 (Oracle VirtualBox virtual NIC)
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 47.33 seconds
