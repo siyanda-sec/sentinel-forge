@@ -1,8 +1,6 @@
 # Sentinel Forge
 
-> A hands-on cybersecurity lab designed to develop practical skills in security monitoring, threat detection, investigation, and incident response.
-
----
+A hands-on cybersecurity lab designed to develop practical skills in security monitoring, threat detection, investigation, and incident response.
 
 ## About
 
@@ -10,7 +8,35 @@ Sentinel Forge is a personal cybersecurity lab project built to bridge the gap b
 
 The project covers the full SOC analyst workflow: building a lab, monitoring a network, configuring a SIEM, simulating attacks, responding to incidents, and automating security tasks.
 
----
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                 VirtualBox Internal Network                 │
+│                      "SentinelForge"                        │
+│                     10.10.10.0/24                            │
+│                                                               │
+│   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐ │
+│   │  Kali Linux   │   │  Windows 10   │   │ Ubuntu Server │ │
+│   │  Attacker /   │◄─►│    Target     │◄─►│  SIEM (Wazuh) │ │
+│   │   Analyst     │   │               │   │    Manager    │ │
+│   │ 10.10.10.10   │   │ 10.10.10.20   │   │ 10.10.10.30   │ │
+│   └───────────────┘   └───────────────┘   └───────┬───────┘ │
+│                                                    │         │
+└────────────────────────────────────────────────────┼─────────┘
+                                                      │ NAT
+                                                      ▼
+                                                Internet (updates,
+                                                package installs)
+```
+
+All three machines run in Oracle VirtualBox on a single isolated internal network. Traffic between Kali, Windows, and Ubuntu is fully contained — nothing reaches the host or the internet except through Ubuntu's separate NAT adapter, used only for package installation.
+
+| Machine | Role | IP |
+|---|---|---|
+| Kali Linux | Attacker / analyst | `10.10.10.10` |
+| Windows 10 | Target | `10.10.10.20` |
+| Ubuntu Server | SIEM (Wazuh manager) | `10.10.10.30` |
 
 ## Objectives
 
@@ -24,8 +50,6 @@ The project covers the full SOC analyst workflow: building a lab, monitoring a n
 - Document findings and evidence in a professional format
 - Develop basic security automation using Python and Bash
 
----
-
 ## Lab Environment
 
 | Tool | Purpose |
@@ -38,8 +62,6 @@ The project covers the full SOC analyst workflow: building a lab, monitoring a n
 | Nmap | Network scanning and enumeration |
 | Python | Security automation and log parsing |
 | Bash / PowerShell | Scripting and system administration |
-
----
 
 ## Project Structure
 
@@ -60,8 +82,6 @@ sentinel-forge/
     └── reports/      # Formal investigation reports
 ```
 
----
-
 ## Progress
 
 | Week | Focus | Status |
@@ -75,8 +95,6 @@ sentinel-forge/
 | 07 | Security automation | ⏳ Upcoming |
 | 08 | Final incident investigation | ⏳ Upcoming |
 
----
-
 ## Focus Areas
 
 - **SOC operations** — monitoring, triage, and alert investigation
@@ -86,12 +104,10 @@ sentinel-forge/
 - **Incident response** — structured IR lifecycle following NIST SP 800-61
 - **Security automation** — scripting to reduce manual effort and increase efficiency
 
----
-
 ## Status
 
 In progress. This repository is updated weekly as the lab develops. Each week folder contains a README documenting the objectives, methodology, findings, and evidence for that stage of the project.
 
 ---
 
-*Built by [Siyanda Mzozoyana](https://github.com/siyanda-sec) · Cybersecurity Student*
+Built by Siyanda Mzozoyana · Cybersecurity Student
