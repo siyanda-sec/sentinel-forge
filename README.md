@@ -87,7 +87,7 @@ sentinel-forge/
 | Week | Focus | Status |
 |---|---|---|
 | 01 | Lab setup | ✅ Complete |
-| 02 | Network reconnaissance & traffic analysis | 🔄 In progress |
+| 02 | Network reconnaissance & traffic analysis | ✅ Complete |
 | 03 | Windows security logs | ⏳ Upcoming |
 | 04 | SIEM & detection | ⏳ Upcoming |
 | 05 | Attack simulation | ⏳ Upcoming |
